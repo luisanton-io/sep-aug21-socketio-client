@@ -1,5 +1,5 @@
 import { Container, Row, Col, Form, FormControl, ListGroup, ListGroupItem, Button } from 'react-bootstrap'
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, FormEvent, useCallback } from 'react'
 import { io } from 'socket.io-client'
 import { IUser } from '../interfaces/IUser'
 import IMessage from '../interfaces/IMessage'
@@ -31,6 +31,9 @@ const Home = () => {
   const [loggedIn, setLoggedIn] = useState(false)
   const [onlineUsers, setOnlineUsers] = useState<IUser[]>([])
   const [chatHistory, setChatHistory] = useState<IMessage[]>([])
+
+  const [room, setRoom] = useState<Room>('blue')
+
 
   // every time this component renders, a connection gets established to the server
   // thanks to the io invocation at line 6
@@ -96,6 +99,27 @@ const Home = () => {
     })
   }, [])
 
+  const fetchPreviousMessages = useCallback(async () => {
+    try {
+      let response = await fetch(ADDRESS + '/chat/' + room)
+      if (response) {
+        let data = await response.json()
+        // data is an array with all the current connected users
+        setChatHistory(data.chatHistory)
+      } else {
+        console.log('error fetching the online users')
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }, [room])
+
+  useEffect(() => {
+    socket.on("loggedin", fetchPreviousMessages)
+
+    return () => { socket.off("loggedin", fetchPreviousMessages) }
+  }, [fetchPreviousMessages])
+
   const handleUsernameSubmit = (e: FormEvent) => {
     e.preventDefault()
     // from here I want to send my username to the server
@@ -141,8 +165,6 @@ const Home = () => {
       console.log(error)
     }
   }
-
-  const [room, setRoom] = useState<Room>('blue')
 
   return (
     <Container fluid className='px-4'>
